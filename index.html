@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>GOLD RUN — Satellite Drive</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root { color-scheme: dark; --glass:rgba(8,15,22,.72); --line:rgba(255,255,255,.18); }
+  * { box-sizing:border-box; }
+  html,body { margin:0;width:100%;height:100%;overflow:hidden;background:#101820;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+  #map { position:fixed;inset:0;z-index:0;background:#242b2d; }
+  #map .leaflet-tile { filter:saturate(1.12) contrast(1.04); }
+  #threeLayer { position:fixed;inset:0;z-index:350;width:100%;height:100%;display:block;touch-action:none;outline:none; }
+  .glass { color:#f7f9fc;background:var(--glass);border:1px solid var(--line);border-radius:15px;box-shadow:0 12px 35px #0005;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px); }
+  #topbar { position:fixed;z-index:600;top:13px;left:13px;right:13px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;pointer-events:none; }
+  #brand { padding:11px 15px;min-width:160px; }
+  .eyebrow { font-size:10px;font-weight:900;letter-spacing:.24em;color:#ffd05a; }
+  #brandTitle { margin-top:2px;font-size:20px;font-weight:950;letter-spacing:-.045em;line-height:1.1; }
+  #brandSub { margin-top:5px;font-size:10px;opacity:.72;letter-spacing:.04em; }
+  #stats { display:flex;gap:8px;align-items:stretch; }
+  .stat { padding:10px 13px;min-width:100px; }
+  .statLabel { font-size:9px;opacity:.72;letter-spacing:.15em;font-weight:800; }
+  .statValue { margin-top:2px;font-size:21px;font-weight:900;line-height:1.1;font-variant-numeric:tabular-nums; }
+  #coinValue { color:#ffd45d; }
+  #coordPanel { padding:9px 12px;min-width:170px; }
+  #coords { margin-top:4px;font-size:10px;opacity:.78;font-variant-numeric:tabular-nums; }
+  #topActions { position:fixed;z-index:650;right:14px;top:112px;display:flex;flex-direction:column;gap:8px; }
+  .city-picker { width:166px;max-width:44vw;color:#fff;appearance:auto;-webkit-appearance:auto;background:rgba(7,14,21,.9); }
+  .city-picker option { color:#111;background:#fff; }
+  #mapCredit { position:fixed;z-index:620;right:5px;bottom:3px;padding:3px 6px;border-radius:5px;color:#ffffffc4;background:#071018a8;font-size:8px;line-height:1.3;pointer-events:auto; }
+  #mapCredit a { color:#ffe18a;text-decoration:none; }
+  button { font:inherit;cursor:pointer; }
+  .action { color:#fff;background:rgba(7,14,21,.76);border:1px solid #ffffff35;border-radius:11px;padding:9px 12px;font-size:11px;font-weight:800;box-shadow:0 4px 15px #0003;backdrop-filter:blur(8px); }
+  .action:active,.action.active { background:rgba(255,194,49,.92);color:#1c1608;border-color:#ffe08a; }
+  #joyZone { position:fixed;z-index:700;left:18px;bottom:22px;width:140px;height:140px;touch-action:none;user-select:none;-webkit-user-select:none; }
+  #joyBase { position:absolute;inset:0;border:1px solid #ffffff55;border-radius:50%;background:radial-gradient(circle at 35% 25%,#ffffff24,#0a1727aa 78%);box-shadow:inset 0 0 25px #0007,0 8px 25px #0004; }
+  #joyBase:after { content:"STEER / DRIVE";position:absolute;left:0;right:0;bottom:13px;text-align:center;font-size:8px;letter-spacing:.15em;font-weight:900;color:#ffffff8c; }
+  #joyKnob { position:absolute;width:58px;height:58px;left:41px;top:41px;border-radius:50%;border:1px solid #ffffffc9;background:linear-gradient(145deg,#ffffffed,#b9d2e4c9);box-shadow:0 5px 15px #0007,inset 0 1px 2px #fff; }
+  #joyKnob:after { content:"";position:absolute;inset:15px;border:2px solid #1f3a4c80;border-radius:50%; }
+  #bottomActions { position:fixed;z-index:700;right:15px;bottom:20px;display:flex;flex-direction:column;gap:8px;align-items:flex-end; }
+  .driveButton { color:white;background:rgba(8,15,22,.78);border:1px solid #ffffff3b;border-radius:12px;padding:11px 15px;min-width:114px;text-align:center;font-size:11px;font-weight:900;backdrop-filter:blur(10px); }
+  #brakeButton { color:#ffe4d6;border-color:#ff946d70; }
+  #toast { position:fixed;z-index:800;left:50%;top:27%;transform:translate(-50%,-15px) scale(.92);opacity:0;pointer-events:none;padding:14px 22px;border-radius:17px;background:linear-gradient(135deg,#fff0a5,#ffc52e 70%,#f39820);color:#392300;border:1px solid #fff1a5;box-shadow:0 0 0 5px #ffca3830,0 14px 44px #0007;font-size:23px;font-weight:1000;letter-spacing:.04em;transition:opacity .16s,transform .16s;white-space:nowrap; }
+  #toast.show { opacity:1;transform:translate(-50%,0) scale(1); }
+  #hint { position:fixed;z-index:550;left:50%;bottom:20px;transform:translateX(-50%);padding:8px 12px;font-size:10px;color:#fff;letter-spacing:.03em;text-align:center;max-width:min(55vw,500px);pointer-events:none;white-space:nowrap; }
+  #soundState { position:fixed;z-index:590;left:50%;top:15px;transform:translateX(-50%);font-size:9px;letter-spacing:.12em;padding:7px 10px;opacity:0;pointer-events:none;transition:opacity .4s; }
+  #soundState.show { opacity:.85; }
+  .leaflet-control-attribution { font-size:9px!important;background:#071018b5!important;color:#ffffffb5!important;backdrop-filter:blur(7px); }
+  .leaflet-control-attribution a { color:#ffe18a!important; }
+  @media (max-width:650px) {
+    #topbar { top:8px;left:8px;right:8px;gap:6px; }
+    #brand { padding:9px 10px;min-width:unset; }
+    #brandTitle { font-size:16px; }
+    #brandSub { font-size:8px; }
+    .eyebrow { font-size:8px; }
+    #stats { gap:5px; }
+    .stat { padding:8px 9px;min-width:67px; }
+    .statLabel { font-size:8px;letter-spacing:.08em; }
+    .statValue { font-size:17px; }
+    #coordPanel { display:none; }
+    #topActions { top:96px;right:9px;gap:6px; }
+    .city-picker { width:142px;max-width:45vw; }
+    .action { padding:8px 9px;font-size:10px; }
+    #joyZone { left:12px;bottom:17px;width:120px;height:120px; }
+    #joyKnob { width:52px;height:52px;left:34px;top:34px; }
+    #joyBase:after { font-size:7px;bottom:10px; }
+    #bottomActions { right:9px;bottom:15px;gap:6px; }
+    .driveButton { padding:9px 10px;min-width:94px;font-size:10px; }
+    #hint { bottom:148px;max-width:96vw;white-space:normal;font-size:9px; }
+    #toast { font-size:20px; }
+  }
+</style>
+</head>
+<body>
+<div id="map" aria-label="Full screen satellite map"></div>
+<canvas id="threeLayer" aria-label="3D driving game"></canvas>
+<div id="topbar">
+  <div id="brand" class="glass"><div class="eyebrow">OPEN-WORLD • SATELLITE</div><div id="brandTitle">GOLD RUN <span style="color:#ffd45d">↗</span></div><div id="brandSub">REAL MAP. 3D RIDE. GOLD HUNT.</div></div>
+  <div id="stats">
+    <div class="stat glass"><div class="statLabel">GOLD</div><div class="statValue" id="coinValue">◉ 0</div></div>
+    <div class="stat glass"><div class="statLabel">SPEED</div><div class="statValue"><span id="speedValue">0</span><small style="font-size:10px;opacity:.7"> km/h</small></div></div>
+  </div>
+  <div id="coordPanel" class="glass"><div class="statLabel">YOUR COORDINATES</div><div id="coords">22.831549, 39.035400</div></div>
+</div>
+<div id="topActions">
+  <label class="statLabel" for="citySelect" style="display:none">Choose city</label>
+  <select id="citySelect" class="action city-picker" aria-label="Choose city">
+    <option value="custom" selected>📍 Starting location</option>
+    <option value="jeddah">🌊 Jeddah</option>
+    <option value="riyadh">🏙 Riyadh</option>
+    <option value="makkah">🕋 Makkah</option>
+    <option value="madinah">🌴 Madinah</option>
+    <option value="dammam">⚓ Dammam</option>
+  </select>
+  <button id="soundButton" class="action" type="button">♫ SOUND: ON</button>
+  <button id="cameraButton" class="action" type="button">◉ RESET CAMERA</button>
+  <button id="mapZoomIn" class="action" type="button">＋ MAP ZOOM</button>
+  <button id="mapZoomOut" class="action" type="button">− MAP ZOOM</button>
+</div>
+<div id="joyZone" aria-label="Touch driving joystick"><div id="joyBase"></div><div id="joyKnob"></div></div>
+<div id="bottomActions">
+  <button id="brakeButton" class="driveButton" type="button">▰ HOLD BRAKE</button>
+  <button id="resetButton" class="driveButton" type="button">↺ RESTART DRIVE</button>
+</div>
+<div id="hint" class="glass">WASD / arrows to drive · drag to orbit · scroll to zoom · collect every gold coin</div>
+<div id="soundState" class="glass">AUDIO READY</div>
+<div id="toast">✦ +1 GOLD ✦</div>
+<div id="mapCredit">Satellite imagery © <a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a>, Maxar, Earthstar Geographics, and the GIS User Community</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// Start position supplied for this game.
+const START = { lat:22.83154923448493, lon:39.035400012968836 };
+const METERS_PER_DEG_LAT = 111320;
+const metersPerLon = lat => 111320 * Math.cos(lat * Math.PI / 180);
+
+// The satellite map is the actual full-screen ground. Three.js is a transparent 3D layer above it.
+const map = L.map('map', {
+  zoomControl:false, attributionControl:false, dragging:false, scrollWheelZoom:false,
+  doubleClickZoom:false, touchZoom:false, boxZoom:false, keyboard:false,
+  minZoom:14, maxZoom:19, zoomSnap:.25, zoomDelta:.25, preferCanvas:true
+}).setView([START.lat,START.lon],18.5);
+// Requests native imagery only through level 18, then smoothly overzooms those tiles.
+// Some areas return a branded 'Map Data Not Yet Available' tile at deeper levels.
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  minZoom:2, maxZoom:19, maxNativeZoom:18,
+  attribution:'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics'
+}).addTo(map);
+
+const canvas = document.getElementById('threeLayer');
+const renderer = new THREE.WebGLRenderer({canvas,alpha:true,antialias:true,powerPreference:'high-performance'});
+const RENDER_DPR_CAP = 2.75;
+function applyRendererResolution(){
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,RENDER_DPR_CAP));
+  renderer.setSize(innerWidth,innerHeight,false);
+}
+applyRendererResolution();
+renderer.setClearColor(0x000000,0);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.18;
+const scene = new THREE.Scene();
+const camera = new THREE.OrthographicCamera(-innerWidth/2,innerWidth/2,innerHeight/2,-innerHeight/2,.1,5000);
+camera.position.set(0,180,130); camera.lookAt(0,0,0);
+const controls = new OrbitControls(camera,canvas);
+controls.enableDamping = true; controls.dampingFactor=.075;
+controls.enablePan = false; controls.enableRotate = true;
+// The mouse wheel zooms the real satellite map; disabling OrbitControls wheel zoom
+// prevents the 3D model and map from magnifying independently.
+controls.enableZoom = false;
+controls.minPolarAngle=.20; controls.maxPolarAngle=1.34;
+controls.minZoom=.55; controls.maxZoom=2.5;
+controls.target.set(0,0,0); controls.update();
+scene.add(new THREE.HemisphereLight(0xeaf6ff,0x65503c,2.25));
+const keyLight = new THREE.DirectionalLight(0xffe5af,3.0); keyLight.position.set(-110,200,100); scene.add(keyLight);
+const rimLight = new THREE.DirectionalLight(0x83caff,1.8); rimLight.position.set(90,100,-130); scene.add(rimLight);
+const raycaster = new THREE.Raycaster();
+const groundPlane = new THREE.Plane(new THREE.Vector3(0,1,0),0);
+
+function screenToGround(x,y) {
+  const w=renderer.domElement.clientWidth||innerWidth, h=renderer.domElement.clientHeight||innerHeight;
+  const ndc=new THREE.Vector2((x/w)*2-1,1-(y/h)*2);
+  raycaster.setFromCamera(ndc,camera);
+  const point=raycaster.ray.intersectPlane(groundPlane,new THREE.Vector3());
+  return point || new THREE.Vector3();
+}
+function geoToScreen(lat,lon) {
+  const p=map.latLngToContainerPoint([lat,lon]);
+  return {x:p.x,y:p.y};
+}
+function geoToGround(lat,lon) { const p=geoToScreen(lat,lon); return screenToGround(p.x,p.y); }
+function geoOffset(lat,lon,east,north) {
+  const newLat=lat+north/METERS_PER_DEG_LAT;
+  const newLon=lon+east/metersPerLon(lat);
+  return {lat:newLat,lon:newLon};
+}
+function bearingPoint(lat,lon,bearing,meters=25) {
+  return geoOffset(lat,lon,Math.sin(bearing)*meters,Math.cos(bearing)*meters);
+}
+
+// Create a stylized, detailed 3D coupe with an actual silhouette, glass, wheels, lights and shadow.
+const car = new THREE.Group(); scene.add(car);
+const paint = new THREE.MeshPhysicalMaterial({color:0xd92d29,metalness:.36,roughness:.24,clearcoat:1,clearcoatRoughness:.14});
+const darkPaint = new THREE.MeshStandardMaterial({color:0x17212a,metalness:.42,roughness:.3});
+const glass = new THREE.MeshPhysicalMaterial({color:0x6fbedb,metalness:.32,roughness:.12,transparent:true,opacity:.91,clearcoat:1});
+const rubber = new THREE.MeshStandardMaterial({color:0x101216,roughness:.88});
+const chrome = new THREE.MeshStandardMaterial({color:0xc6d1d9,metalness:.88,roughness:.2});
+const headlampMat = new THREE.MeshStandardMaterial({color:0xfff1c0,emissive:0xffc34c,emissiveIntensity:1.8});
+const tailLampMat = new THREE.MeshStandardMaterial({color:0xff3421,emissive:0xf21e12,emissiveIntensity:1.1});
+function addCarPart(geometry,material,position,rotation=null) {
+  const mesh=new THREE.Mesh(geometry,material); mesh.position.set(...position);
+  if(rotation) mesh.rotation.set(...rotation); mesh.castShadow=true; mesh.receiveShadow=true; car.add(mesh); return mesh;
+}
+// Local car nose faces -Z. Dimensions are tuned for visibility over satellite imagery.
+addCarPart(new THREE.BoxGeometry(13.2,3.8,27.5),paint,[0,4.0,0]);
+addCarPart(new THREE.BoxGeometry(12.5,1.7,8.2),paint,[0,5.7,-8.8]);
+addCarPart(new THREE.BoxGeometry(11.8,1.25,5.5),darkPaint,[0,3.25,10.4]);
+// Cabin with a windshield-like slope and panoramic roof.
+addCarPart(new THREE.BoxGeometry(9.5,3.7,11.8),glass,[0,6.9,1.4]);
+addCarPart(new THREE.BoxGeometry(8.8,.65,7.8),paint,[0,8.95,1.1]);
+addCarPart(new THREE.BoxGeometry(10.2,.65,1.2),paint,[0,6.7,-4.7]);
+addCarPart(new THREE.BoxGeometry(10.2,.65,1.2),paint,[0,6.7,7.3]);
+// Front grill and bumpers.
+addCarPart(new THREE.BoxGeometry(7.6,1.05,.65),darkPaint,[0,2.8,-13.7]);
+addCarPart(new THREE.BoxGeometry(8.2,.58,.9),chrome,[0,2.2,-13.8]);
+addCarPart(new THREE.BoxGeometry(8.2,.5,.8),darkPaint,[0,2.2,13.8]);
+for(const x of [-4.6,4.6]) {
+  addCarPart(new THREE.BoxGeometry(2.1,.9,.35),headlampMat,[x,4.05,-13.92]);
+  addCarPart(new THREE.BoxGeometry(1.7,.65,.32),tailLampMat,[x,4.0,13.9]);
+  // Mirrors
+  addCarPart(new THREE.BoxGeometry(2.0,1.0,1.35),paint,[x*1.34,5.1,-3.5]);
+}
+const wheels=[];
+for(const x of [-6.8,6.8]) for(const z of [-8.7,8.5]) {
+  const wheel=new THREE.Group(); wheel.position.set(x,3.0,z); car.add(wheel); wheels.push(wheel);
+  const tire=new THREE.Mesh(new THREE.CylinderGeometry(3.05,3.05,2.15,22),rubber); tire.rotation.z=Math.PI/2; tire.castShadow=true; wheel.add(tire);
+  const rim=new THREE.Mesh(new THREE.CylinderGeometry(1.75,1.75,2.22,16),chrome); rim.rotation.z=Math.PI/2; wheel.add(rim);
+  const hub=new THREE.Mesh(new THREE.CylinderGeometry(.55,.55,2.27,12),darkPaint); hub.rotation.z=Math.PI/2; wheel.add(hub);
+  for(let s=0;s<5;s++) {
+    const spoke=new THREE.Mesh(new THREE.BoxGeometry(.18,.33,2.3),chrome); spoke.position.set(0,0,0); spoke.rotation.x=s*Math.PI*2/5; wheel.add(spoke);
+  }
+}
+// Soft contact shadow sits directly on the map plane.
+const shadowMat=new THREE.MeshBasicMaterial({color:0x06101b,transparent:true,opacity:.34,depthWrite:false,side:THREE.DoubleSide});
+const shadow=new THREE.Mesh(new THREE.CircleGeometry(12.6,40),shadowMat); shadow.rotation.x=-Math.PI/2; shadow.scale.set(1,1.45,1); shadow.position.y=.15; car.add(shadow);
+car.position.set(0,0,0);
+
+// Coin geometry: gold metal disks with raised rims and embossed stars. All coins live at real map coordinates.
+const coins=[];
+const coinGold=new THREE.MeshPhysicalMaterial({color:0xffbd18,metalness:.93,roughness:.19,clearcoat:1,clearcoatRoughness:.12,emissive:0x7e3d00,emissiveIntensity:.22});
+const coinRimMat=new THREE.MeshStandardMaterial({color:0xffef8a,metalness:.86,roughness:.18,emissive:0x9d5a02,emissiveIntensity:.18});
+const starMat=new THREE.MeshStandardMaterial({color:0xffef9b,metalness:.72,roughness:.22,emissive:0x9e6000,emissiveIntensity:.22});
+const starShape=new THREE.Shape();
+for(let i=0;i<10;i++) { const a=-Math.PI/2+i*Math.PI/5, r=i%2===0?4.1:1.85; const x=Math.cos(a)*r,z=Math.sin(a)*r; if(i===0)starShape.moveTo(x,z); else starShape.lineTo(x,z); }
+starShape.closePath();
+for(let i=0;i<46;i++) {
+  const east=Math.sin(i*.72)*30+Math.sin(i*.23)*13;
+  const north=18+i*24.5;
+  const ll=geoOffset(START.lat,START.lon,east,north);
+  const group=new THREE.Group();
+  const visual=new THREE.Group(); group.add(visual);
+  const disk=new THREE.Mesh(new THREE.CylinderGeometry(7.2,7.2,1.9,32),coinGold); disk.position.y=7.4; disk.castShadow=true; visual.add(disk);
+  const rim=new THREE.Mesh(new THREE.TorusGeometry(5.85,.65,8,32),coinRimMat); rim.rotation.x=Math.PI/2; rim.position.y=8.42; visual.add(rim);
+  const star=new THREE.Mesh(new THREE.ShapeGeometry(starShape),starMat); star.rotation.x=-Math.PI/2; star.position.y=8.42; star.scale.set(.93,.93,.93); visual.add(star);
+  // Tiny glint facets catch the light as the coin turns.
+  const glint=new THREE.Mesh(new THREE.OctahedronGeometry(1.05,0),new THREE.MeshBasicMaterial({color:0xffffff})); glint.position.set(3.8,8.8,-3.1); visual.add(glint);
+  scene.add(group);
+  coins.push({group,visual,lat:ll.lat,lon:ll.lon,active:true,phase:i*1.73,east,north});
+}
+
+// Keep 3D object sizes proportional to the geographic satellite zoom level.
+const BASE_MAP_ZOOM=18.5;
+function syncMapScale(){
+  const scale=Math.pow(2,map.getZoom()-BASE_MAP_ZOOM);
+  car.scale.setScalar(scale);
+  for(const c of coins)c.group.scale.setScalar(scale);
+}
+map.on('zoomend',syncMapScale); syncMapScale();
+// Scroll zoom changes the satellite imagery, not only the 3D camera, so alignment stays believable.
+canvas.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const next=THREE.MathUtils.clamp(map.getZoom()+(e.deltaY<0?.25:-.25),14,19);
+  map.setZoom(next,{animate:false});
+},{passive:false});
+document.getElementById('mapZoomIn').addEventListener('click',()=>map.setZoom(THREE.MathUtils.clamp(map.getZoom()+.25,14,19)));
+document.getElementById('mapZoomOut').addEventListener('click',()=>map.setZoom(THREE.MathUtils.clamp(map.getZoom()-.25,14,19)));
+
+// Audio is procedurally synthesized with Web Audio, so no audio assets or downloads are needed.
+let audioCtx=null, masterGain=null, engineGain=null, engineFilter=null, engineA=null, engineB=null, windGain=null, skidGain=null, soundEnabled=true;
+function ensureAudio() {
+  if(audioCtx) { if(audioCtx.state==='suspended') audioCtx.resume().catch(()=>{}); return; }
+  const AC=window.AudioContext||window.webkitAudioContext; if(!AC)return;
+  audioCtx=new AC();
+  masterGain=audioCtx.createGain(); masterGain.gain.value=soundEnabled ? 0.56 : 0; masterGain.connect(audioCtx.destination);
+  engineFilter=audioCtx.createBiquadFilter(); engineFilter.type='lowpass'; engineFilter.frequency.value=230; engineFilter.Q.value=.7; engineFilter.connect(masterGain);
+  engineGain=audioCtx.createGain(); engineGain.gain.value=.018; engineGain.connect(engineFilter);
+  engineA=audioCtx.createOscillator(); engineA.type='sawtooth'; engineA.frequency.value=48; engineA.connect(engineGain); engineA.start();
+  engineB=audioCtx.createOscillator(); engineB.type='triangle'; engineB.frequency.value=72; const g2=audioCtx.createGain(); g2.gain.value=.38; engineB.connect(g2); g2.connect(engineGain); engineB.start();
+  // Low breeze layer, modulated by driving speed.
+  const length=audioCtx.sampleRate*2, buffer=audioCtx.createBuffer(1,length,audioCtx.sampleRate), data=buffer.getChannelData(0);
+  for(let i=0;i<length;i++) data[i]=(Math.random()*2-1)*.6;
+  const noise=audioCtx.createBufferSource(); noise.buffer=buffer; noise.loop=true;
+  const windFilter=audioCtx.createBiquadFilter(); windFilter.type='lowpass'; windFilter.frequency.value=450;
+  windGain=audioCtx.createGain(); windGain.gain.value=0; noise.connect(windFilter); windFilter.connect(windGain); windGain.connect(masterGain); noise.start();
+  const skidNoise=audioCtx.createBufferSource(); skidNoise.buffer=buffer; skidNoise.loop=true;
+  const skidFilter=audioCtx.createBiquadFilter(); skidFilter.type='bandpass'; skidFilter.frequency.value=1300; skidFilter.Q.value=.7;
+  skidGain=audioCtx.createGain(); skidGain.gain.value=0; skidNoise.connect(skidFilter); skidFilter.connect(skidGain); skidGain.connect(masterGain); skidNoise.start();
+  playTone(440,.05,'sine',.04,880);
+  showSoundState('ENGINE ONLINE');
+}
+function playTone(from,duration,type='sine',volume=.12,to=null) {
+  if(!audioCtx||!soundEnabled||!masterGain)return;
+  const now=audioCtx.currentTime, osc=audioCtx.createOscillator(), gain=audioCtx.createGain();
+  osc.type=type; osc.frequency.setValueAtTime(Math.max(30,from),now);
+  if(to) osc.frequency.exponentialRampToValueAtTime(Math.max(30,to),now+duration*.85);
+  gain.gain.setValueAtTime(.0001,now); gain.gain.exponentialRampToValueAtTime(Math.max(.0002,volume),now+.012); gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
+  osc.connect(gain); gain.connect(masterGain); osc.start(now); osc.stop(now+duration+.03);
+}
+function playCoinSound() {
+  if(!audioCtx||!soundEnabled)return;
+  playTone(740,.22,'triangle',.22,1480);
+  setTimeout(()=>playTone(1180,.28,'sine',.13,1880),45);
+  setTimeout(()=>playTone(1760,.19,'sine',.075,2120),75);
+}
+function showSoundState(label) {
+  const el=document.getElementById('soundState'); el.textContent=label; el.classList.add('show');
+  clearTimeout(showSoundState.timer); showSoundState.timer=setTimeout(()=>el.classList.remove('show'),1300);
+}
+function syncAudio(speedAbs,throttle,steer) {
+  if(!audioCtx)return;
+  const now=audioCtx.currentTime, ratio=Math.min(1,speedAbs/(200/3.6));
+  engineA.frequency.setTargetAtTime(43+speedAbs*4.6+Math.max(0,throttle)*18,now,.055);
+  engineB.frequency.setTargetAtTime(67+speedAbs*7.1,now,.065);
+  engineFilter.frequency.setTargetAtTime(170+speedAbs*25,now,.08);
+  engineGain.gain.setTargetAtTime(.009+ratio*.055+(throttle>0?.012:0),now,.09);
+  windGain.gain.setTargetAtTime(Math.max(0,ratio-.12)*.035,now,.14);
+  skidGain.gain.setTargetAtTime(Math.abs(steer)>.56&&speedAbs>11?(Math.abs(steer)-.45)*.033:0,now,.07);
+}
+
+// Game state / controls.
+let carLat=START.lat, carLon=START.lon, heading=0, speed=0, coinsCollected=0;
+let currentCityId='custom';
+let currentLocation={name:'Starting location',lat:START.lat,lon:START.lon,zoom:18.5};
+const CITIES={
+  custom:{name:'Starting location',lat:START.lat,lon:START.lon,zoom:18.5},
+  jeddah:{name:'Jeddah',lat:21.4858,lon:39.1925,zoom:17.5},
+  riyadh:{name:'Riyadh',lat:24.7136,lon:46.6753,zoom:17.5},
+  makkah:{name:'Makkah',lat:21.3891,lon:39.8579,zoom:17.5},
+  madinah:{name:'Madinah',lat:24.5247,lon:39.5692,zoom:17.5},
+  dammam:{name:'Dammam',lat:26.4207,lon:50.0888,zoom:17.5}
+};
+const MAX_SPEED_MS=200/3.6;
+let joyX=0,joyY=0,joyActive=false,braking=false,steerValue=0;
+const keys=new Set();
+const joyZone=document.getElementById('joyZone'), joyKnob=document.getElementById('joyKnob');
+function updateJoystick(e) {
+  const r=joyZone.getBoundingClientRect(), dx0=(e.clientX-(r.left+r.width/2))/(r.width*.34), dy0=(e.clientY-(r.top+r.height/2))/(r.height*.34);
+  let x=dx0,y=dy0; const m=Math.hypot(x,y); if(m>1){x/=m;y/=m;}
+  joyX=x; joyY=y;
+  joyKnob.style.left=(r.width/2-joyKnob.offsetWidth/2+x*r.width*.31)+'px';
+  joyKnob.style.top=(r.height/2-joyKnob.offsetHeight/2+y*r.height*.31)+'px';
+  ensureAudio();
+}
+joyZone.addEventListener('pointerdown',e=>{joyActive=true;joyZone.setPointerCapture(e.pointerId);updateJoystick(e);});
+joyZone.addEventListener('pointermove',e=>{if(joyActive)updateJoystick(e);});
+function releaseJoystick(){joyActive=false;joyX=0;joyY=0;joyKnob.style.left='';joyKnob.style.top='';}
+joyZone.addEventListener('pointerup',releaseJoystick); joyZone.addEventListener('pointercancel',releaseJoystick);
+window.addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase(); if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();
+  keys.add(k); if(!e.repeat)ensureAudio();
+});
+window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
+window.addEventListener('blur',()=>{keys.clear();releaseJoystick();braking=false;});
+const brakeButton=document.getElementById('brakeButton');
+brakeButton.addEventListener('pointerdown',e=>{e.preventDefault();braking=true;ensureAudio();brakeButton.classList.add('active');});
+['pointerup','pointercancel','pointerleave'].forEach(evt=>brakeButton.addEventListener(evt,()=>{braking=false;brakeButton.classList.remove('active');}));
+
+document.getElementById('soundButton').addEventListener('click',()=>{
+  soundEnabled=!soundEnabled;
+  if(soundEnabled){ensureAudio();if(audioCtx&&masterGain)masterGain.gain.setTargetAtTime(.56,audioCtx.currentTime,.04);}
+  else if(audioCtx&&masterGain)masterGain.gain.setTargetAtTime(0,audioCtx.currentTime,.04);
+  const b=document.getElementById('soundButton'); b.textContent=soundEnabled?'♫ SOUND: ON':'♫ SOUND: OFF'; b.classList.toggle('active',!soundEnabled);
+  showSoundState(soundEnabled?'SOUND ENABLED':'SOUND MUTED');
+});
+function resetCamera(){
+  controls.target.set(0,0,0); camera.position.set(0,180,130); camera.zoom=1; camera.updateProjectionMatrix(); controls.update();
+}
+document.getElementById('cameraButton').addEventListener('click',resetCamera);
+function respawnCoinsAt(location){
+  for(const c of coins){
+    const ll=geoOffset(location.lat,location.lon,c.east,c.north);
+    c.lat=ll.lat; c.lon=ll.lon; c.active=true;
+    scene.add(c.group);
+  }
+  coinsCollected=0;
+  document.getElementById('coinValue').textContent='◉ 0';
+}
+function switchCity(cityId){
+  const location=CITIES[cityId]||CITIES.custom;
+  currentCityId=cityId in CITIES?cityId:'custom';
+  currentLocation=location;
+  carLat=location.lat;carLon=location.lon;heading=0;speed=0;steerValue=0;
+  respawnCoinsAt(location);
+  const zoom=THREE.MathUtils.clamp(location.zoom,14,19);
+  map.setView([carLat,carLon],zoom,{animate:false});
+  resetCamera();
+  document.getElementById('coords').textContent=carLat.toFixed(6)+', '+carLon.toFixed(6);
+  document.getElementById('speedValue').textContent='0';
+  showSoundState('LOCATION: '+location.name.toUpperCase());
+}
+document.getElementById('citySelect').addEventListener('change',e=>switchCity(e.target.value));
+function resetDrive(){
+  carLat=currentLocation.lat;carLon=currentLocation.lon;heading=0;speed=0;steerValue=0;
+  respawnCoinsAt(currentLocation);
+  map.setView([carLat,carLon],currentLocation.zoom,{animate:false});resetCamera();
+}
+document.getElementById('resetButton').addEventListener('click',resetDrive);
+const toast=document.getElementById('toast');let toastTimer=0;
+function coinToast(){toast.classList.remove('show');void toast.offsetWidth;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),900);}
+
+const clock=new THREE.Clock(); let mapFollowTime=0,updateHudTime=0;
+const v0=new THREE.Vector3(),v1=new THREE.Vector3(),desiredForward=new THREE.Vector3();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),.04), t=clock.elapsedTime;
+  let throttle=0, steering=0;
+  if(keys.has('w')||keys.has('arrowup'))throttle=1;
+  if(keys.has('s')||keys.has('arrowdown'))throttle=-.72;
+  if(keys.has('a')||keys.has('arrowleft'))steering=-1;
+  if(keys.has('d')||keys.has('arrowright'))steering=1;
+  if(joyActive){throttle=THREE.MathUtils.clamp(-joyY,-1,1);steering=joyX;}
+  const previousSpeed=speed;
+  speed+=throttle*30*dt;
+  if(!throttle)speed*=Math.pow(.986,dt*60);
+  if(braking)speed*=Math.pow(.62,dt*60);
+  speed=THREE.MathUtils.clamp(speed,-8,MAX_SPEED_MS);
+  const speedRatio=Math.min(1,Math.abs(speed)/8);
+  heading+=steering*speedRatio*1.35*dt*Math.sign(speed||1);
+  steerValue=THREE.MathUtils.damp(steerValue,steering,.18,dt);
+  const travel=speed*dt;
+  const displacement=geoOffset(carLat,carLon,Math.sin(heading)*travel,Math.cos(heading)*travel);
+  carLat=displacement.lat; carLon=displacement.lon;
+  mapFollowTime+=dt;
+  if(mapFollowTime>.055){
+    // Follow the car smoothly on the map, but keep the satellite layer full-screen.
+    map.setView([carLat,carLon],map.getZoom(),{animate:false});
+    mapFollowTime=0;
+  }
+  controls.update();
+
+  // Inverse-project Leaflet's screen pixels onto the camera's 3D ground plane. This keeps
+  // every 3D base point aligned with the real satellite-map coordinate, even after orbiting.
+  const carScreen=geoToScreen(carLat,carLon);
+  car.position.copy(screenToGround(carScreen.x,carScreen.y));
+  const forwardLL=bearingPoint(carLat,carLon,heading,24), forwardScreen=geoToScreen(forwardLL.lat,forwardLL.lon);
+  v0.copy(screenToGround(carScreen.x,carScreen.y)); v1.copy(screenToGround(forwardScreen.x,forwardScreen.y));
+  desiredForward.copy(v1).sub(v0);
+  car.rotation.y=Math.atan2(-desiredForward.x,-desiredForward.z);
+  // Wheel spin and tiny body suspension give the car some life.
+  for(const wheel of wheels)wheel.rotation.x += speed*dt*.04;
+  car.position.y=0;
+  car.position.y+=Math.abs(speed)>1?Math.sin(t*14)*.12:Math.sin(t*1.7)*.035;
+  shadow.position.y=.15;
+
+  for(const c of coins){
+    if(!c.active)continue;
+    const screen=geoToScreen(c.lat,c.lon);
+    c.group.position.copy(screenToGround(screen.x,screen.y));
+    c.group.rotation.y=t*1.85+c.phase;
+    c.visual.position.y= Math.sin(t*2.5+c.phase)*1.05;
+    c.visual.rotation.z=Math.sin(t*1.25+c.phase)*.045;
+    c.group.visible=screen.x>-80&&screen.x<innerWidth+80&&screen.y>-100&&screen.y<innerHeight+100;
+    const dx=(c.lon-carLon)*metersPerLon(carLat), dy=(c.lat-carLat)*METERS_PER_DEG_LAT;
+    if(dx*dx+dy*dy<9.0*9.0){
+      c.active=false;scene.remove(c.group);coinsCollected++;
+      document.getElementById('coinValue').textContent='◉ '+coinsCollected;
+      coinToast();playCoinSound();
+    }
+  }
+  syncAudio(Math.abs(speed),throttle,steerValue);
+  updateHudTime+=dt;
+  if(updateHudTime>.10){
+    updateHudTime=0;
+    document.getElementById('speedValue').textContent=Math.round(Math.abs(speed)*3.6);
+    document.getElementById('coords').textContent=carLat.toFixed(6)+', '+carLon.toFixed(6);
+  }
+  renderer.render(scene,camera);
+}
+animate();
+window.addEventListener('resize',()=>{
+  const w=innerWidth,h=innerHeight;
+  camera.left=-w/2;camera.right=w/2;camera.top=h/2;camera.bottom=-h/2;camera.updateProjectionMatrix();
+  applyRendererResolution();
+  map.invalidateSize({pan:false});
+  // After Ctrl+/- browser zoom, let Leaflet recalculate its CSS-pixel viewport first.
+  requestAnimationFrame(()=>map.invalidateSize({pan:false}));
+});
+</script>
+</body>
+</html>
